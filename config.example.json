@@ -1,5 +1,6 @@
 {
   "token": "",
+  "group_id": 0,
   "links": [
     "apiclub",
     "vk.com/id1"
@@ -8,5 +9,11 @@
     "test message [0]",
     "test message [1]"
   ],
+  "attachments": [
+    ""
+  ],
+  "like": true,
+  "comment": true,
+  "likecomment": true,
   "time": 1000
 }

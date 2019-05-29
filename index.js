@@ -10,12 +10,13 @@ const { VK } = require('vk-io')
 const fs = require('fs')
 let vk = new VK()
 
-let { token, links, messages, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
+let { token, group_id, links, messages, attachments, like, comment, likecomment, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
 
 let liked = []
 let commented = []
+let commenterrored = []
 
-let generateRandomMessage = (array) => array[Math.round((array.length - 1) * Math.random())]
+let getRandomItemFromArray = (array) => array[Math.round((array.length - 1) * Math.random())]
 
 async function init () {
   debug('Устанавливаю токен ВКонтакте')
@@ -31,8 +32,13 @@ async function init () {
     return result.type === 'group' ? -result.id : result.id
   }))
 
+  if (!like && !comment) {
+    console.error('> Необходимо включить хотя-бы одну функцию для работы программы.')
+  }
+
   if (time < 100) {
     time = 100
+    console.log('> Интервал для обновления ленты был меньше 100 миллисекунд, в связи с этим он автоматические был установлен на 100 миллисекунд')
   }
 
   setInterval(async _ => {
@@ -40,17 +46,31 @@ async function init () {
 
     if (!links.includes(lastWallPost.source_id)) return
 
-    if (!commented.includes(lastWallPost.post_id)) {
+    if (!commented.includes(lastWallPost.post_id) && !commenterrored.includes(lastWallPost.post_id) && comment) {
       try {
-        let message = generateRandomMessage(messages)
+        let message = getRandomItemFromArray(messages)
+        let attachment = getRandomItemFromArray(attachments)
         if (message) {
           debug(`Отправляю в комментарии к записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}] сообщение с текстом [${message}]`)
-          await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, post_id: lastWallPost.post_id, message })
+          let { comment_id } = (await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, from_group: group_id, post_id: lastWallPost.post_id, message, attachments: attachment }))
           commented.push(lastWallPost.post_id)
           console.log(`> Был написан комментарий под записью [wall${lastWallPost.source_id}_${lastWallPost.post_id}] с текстом [${message}].`)
+          if (likecomment) {
+            try {
+              await vk.api.likes.add({
+                type: 'comment',
+                owner_id: lastWallPost.source_id,
+                item_id: comment_id,
+              })
+              console.log(`> Был установлен лайк под отправленным комментарием [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
+            } catch (e) {
+              console.error('Неизвестная ошибка')
+            }
+          }
         }
       } catch (e) {
         let errors = {
+          15: 'Доступ запрещён. (возможно, в группе от имени которой отправляется комментарий у аккаунта нет роли редактора)',
           213: 'Нет доступа к комментированию записи (возможно, комментарии были закрыты)',
           222: 'Запрещённые гиперссылки',
           223: 'Превышен лимит комментариев на стене',
@@ -58,11 +78,13 @@ async function init () {
 
         let error = errors[e.code] || 'Неизвестная ошибка'
 
-        throw new Error(error)
+        commenterrored.push(lastWallPost.post_id)
+
+        console.error(`Ошибка: ${error}`)
       }
     }
 
-    if (!liked.includes(lastWallPost.post_id)) {
+    if (!liked.includes(lastWallPost.post_id) && like) {
       try {
         debug(`Ставлю лайк записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}]`)
         await vk.api.likes.add({
@@ -79,7 +101,7 @@ async function init () {
 
         let error = errors[e.code] || 'Неизвестная ошибка'
 
-        throw new Error(error)
+        console.error(`Ошибка: ${error}`)
       }
     }
   }, time)
