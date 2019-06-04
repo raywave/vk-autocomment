@@ -12,6 +12,7 @@
   "attachments": [
     ""
   ],
+  "autosubscribe": true,
   "like": true,
   "comment": true,
   "likecomment": true,
