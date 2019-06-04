@@ -49,7 +49,7 @@ const chalk = require('chalk')
 const { VK } = require('vk-io')
 let vk = new VK()
 
-let { token, group_id, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
+let { token, group_link, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
 
 let posts = {
   liked: [],
@@ -78,9 +78,14 @@ async function init () {
     return result.type === 'group' ? -result.id : result.id
   }))
 
-  if (group_id) {
-    group_id = (await vk.snippets.resolveResource(group_id)).id
+  if (group_link && group_link !== '') {
+    let result = await vk.snippets.resolveResource(group_link)
+    group_link = result.type === 'group' ? result.id : 0
   }
+
+  // == null проверяет на null и undefined
+  // === null проверяет на null
+  group_link = group_link == null ? 0 : group_link
 
   vk.captchaHandler = async ({ src }, submit) => {
     const result = await captchaHandler(src)
@@ -108,6 +113,7 @@ async function init () {
               console.log(`${chalk.blue('>')} Пользователь был автоматически подписан на группу [club${Math.abs(group)}].`)
             } catch (e) {
               let errors = {
+                15: 'Доступ запрещён (скорее всего, пользователь находится в чёрном списке)',
                 103: 'Превышено ограничение на количество вступлений',
               }
               let error = errors[e.code] || 'Неизвестная ошибка'
@@ -125,7 +131,6 @@ async function init () {
     '',
     `${chalk.blue('>')} VK AutoComment был запущен.`,
   ].join('\n'))
-
   if (!like && !comment) {
     console.error(`${chalk.red('>')} Необходимо включить хотя-бы одну функцию для работы программы.`)
     process.exit(0)
@@ -148,7 +153,7 @@ async function init () {
         let attachment = getRandomItemFromArray(attachments)
         if (message) {
           debug(`Отправляю в комментарии к записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}] сообщение с текстом [${message}]`)
-          let { comment_id } = (await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, from_group: group_id, post_id: lastWallPost.post_id, message, attachments: attachment }))
+          let { comment_id } = (await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, from_group: group_link, post_id: lastWallPost.post_id, message: message, attachments: attachment }))
           posts.commented.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
           console.log(`${chalk.green('>')} Был написан комментарий под записью [wall${lastWallPost.source_id}_${lastWallPost.post_id}] с текстом [${message}]${attachments.length > 0 ? ` и вложением [${attachment}]` : ''}.`)
           if (likecomment) {
