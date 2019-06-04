@@ -78,7 +78,9 @@ async function init () {
     return result.type === 'group' ? -result.id : result.id
   }))
 
-  group_id = (await vk.snippets.resolveResource(group_id)).id
+  if (group_id) {
+    group_id = (await vk.snippets.resolveResource(group_id)).id
+  }
 
   vk.captchaHandler = async ({ src }, submit) => {
     const result = await captchaHandler(src)
