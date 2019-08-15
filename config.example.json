@@ -1,6 +1,7 @@
 {
   "token": "",
   "group_link": "",
+  "ignore_links": false,
   "links": [
     "apiclub",
     "vk.com/id1"
@@ -10,7 +11,8 @@
     "test message [1]"
   ],
   "attachments": [
-    ""
+    "photo100_247648259",
+    "photo1_228175223"
   ],
   "autosubscribe": true,
   "like": true,

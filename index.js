@@ -47,15 +47,17 @@ readlineSync.setDefaultOptions({ encoding: 'utf8' })
 const chalk = require('chalk')
 
 const { VK } = require('vk-io')
-let vk = new VK()
 
-let { token, group_link, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
+let vk = new VK({
+  apiMode: 'parallel_selected',
+  apiExecuteMethods: ['groups.join'],
+})
+
+let { token, group_link, ignore_links, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
 
 let posts = {
   liked: [],
-  like_error: [],
   commented: [],
-  commet_error: [],
 }
 
 let intervalTTL = false
@@ -83,12 +85,10 @@ async function init () {
     group_link = result.type === 'group' ? result.id : 0
   }
 
-  // == null проверяет на null и undefined
-  // === null проверяет на null
   group_link = group_link == null ? 0 : group_link
 
   vk.captchaHandler = async ({ src }, submit) => {
-    const result = await captchaHandler(src)
+    const result = captchaHandler(src)
 
     try {
       await submit(result)
@@ -104,7 +104,7 @@ async function init () {
         count: 1000,
       }).then((resp, err) => {
         if (err) throw err
-        links.filter(function (x) { return x < 0 }).map(async (group) => {
+        links.filter((x) => { return x < 0 }).map(async (group) => {
           if (!resp.items.includes(Math.abs(group))) {
             try {
               await vk.api.groups.join({
@@ -145,16 +145,16 @@ async function init () {
   intervalTTL = setInterval(async _ => {
     let lastWallPost = (await vk.api.newsfeed.get({ filters: 'post', count: 1 })).items[0]
 
-    if (!links.includes(lastWallPost.source_id)) return
+    if (!ignore_links && !links.includes(lastWallPost.source_id)) return
 
-    if (!posts.commented.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && !posts.commet_error.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && comment) {
+    if (!posts.commented.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && comment) {
+      posts.commented.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
       try {
         let message = getRandomItemFromArray(messages)
         let attachment = getRandomItemFromArray(attachments)
         if (message) {
           debug(`Отправляю в комментарии к записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}] сообщение с текстом [${message}]`)
           let { comment_id } = (await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, from_group: group_link, post_id: lastWallPost.post_id, message: message, attachments: attachment }))
-          posts.commented.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
           console.log(`${chalk.green('>')} Был написан комментарий под записью [wall${lastWallPost.source_id}_${lastWallPost.post_id}] с текстом [${message}]${attachments.length > 0 ? ` и вложением [${attachment}]` : ''}.`)
           if (likecomment) {
             try {
@@ -179,13 +179,12 @@ async function init () {
 
         let error = errors[e.code] || 'Неизвестная ошибка'
 
-        posts.commet_error.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
-
         console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
       }
     }
 
-    if (!posts.liked.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && !posts.like_error.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && like) {
+    if (!posts.liked.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && like) {
+      posts.liked.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
       try {
         debug(`Ставлю лайк записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}]`)
         await vk.api.likes.add({
@@ -193,7 +192,6 @@ async function init () {
           owner_id: lastWallPost.source_id,
           item_id: lastWallPost.post_id,
         })
-        posts.liked.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
         console.log(`${chalk.green('>')} Был установлен лайк записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
       } catch (e) {
         let errors = {
@@ -202,7 +200,6 @@ async function init () {
 
         let error = errors[e.code] || 'Неизвестная ошибка'
 
-        posts.like_error.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
         console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
       }
     }
@@ -229,9 +226,10 @@ function captchaHandler (source) {
 
 let adscount = 0
 let adsmessages = [
+  `${chalk.yellow('!')} Благодарность - лучшее, что может услышать разработчик скрипта.`,
   `${chalk.yellow('!')} Не забудьте оставить отзыв в теме форума, где Вы нашли данный скрипт или поставить Star на GitHub`,
-  `${chalk.yellow('!')} Вы можете поддержать разработчика на patreon -> ${chalk.white.bold('patreon.com/aeonixlegit')} / donation alerts -> ${chalk.white.bold('donationalerts.com/r/aeonixlegit')}`,
-  `${chalk.yellow('!')} Вы можете заказать разработку своего бота -> ${chalk.white.bold('vk.me/aeonix')}`,
+  `${chalk.yellow('!')} Вы можете заказать разработку бота по своему тех. заданию в группе -> ${chalk.white.bold('vk.me/aeonix')}`,
+  `${chalk.yellow('!')} Вы можете поддержать разработчика используя donation alerts -> ${chalk.white.bold('donationalerts.com/r/aeonixlegit')}`,
   `${chalk.yellow('!')} Всегда проверяйте обновления на GitHub, ведь обновление может выйти с минуты на минуту с необходимым для Вас функционалом.`,
   `${chalk.yellow('!')} Наличие рекламы в бесплатном приложении - признак его долгой поддержки.`,
 ]

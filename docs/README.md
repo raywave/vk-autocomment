@@ -11,7 +11,8 @@
 ```json
 {
   "token": "62210cbsm0k17gr4wc938533765dbb1d81590dxd4e9d90ef5ea7783d3a5aed1173z4e89a654877c6ade197ef",
-  "group_id": "",
+  "group_link": "",
+  "ignore_links": false,
   "links": [
     "apiclub",
     "vk.com/id1"
@@ -21,7 +22,8 @@
     "test message [1]"
   ],
   "attachments": [
-    ""
+    "photo100_247648259",
+    "photo1_228175223"
   ],
   "autosubscribe": true,
   "like": true,
@@ -35,6 +37,7 @@
 |-            |-                                                                                |
 |token        |[Токен пользователя ВКонтакте](https://vkhost.github.io/)                        |
 |group_link   |Ссылка на группу от которой необходимо отправить комментарий (0 / "" - отключено)|
+|ignore_links |Включить возможность комментирования 'всех групп' в ленте новостей               |
 |links        |Массив ссылок / ID на сообщества / страниц                                       |
 |messages     |Массив случайных комментариев                                                    |
 |attachments  |Массив случайных аттачей (фотографий, документов и пр.)                          |
