@@ -2,5 +2,5 @@
 if [ ! -f "./config.json" ]; then
   cp ./config.example.json ./config.json
 fi
-node index.js
+node src/index.js
 exit 0

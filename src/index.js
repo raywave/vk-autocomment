@@ -4,26 +4,47 @@
  */
 
 const debug = require('debug')('vk-autocomment:main')
+
+const path = require('path')
+global.appDir = path.dirname(require.main.filename)
+
 const Utils = global.U = require('./utils')
 const fs = require('fs')
-
-const { version } = require('./package.json')
 
 const logo = [
   ' ▌ ▐·▄ •▄      ▄▄▄· ▄• ▄▌▄▄▄▄▄       ▄▄·       • ▌ ▄ ·. • ▌ ▄ ·. ▄▄▄ . ▐ ▄ ▄▄▄▄▄',
   '▪█·█▌█▌▄▌▪    ▐█ ▀█ █▪██▌•██  ▪     ▐█ ▌▪▪     ·██ ▐███▪·██ ▐███▪▀▄.▀·•█▌▐█•██  ',
-  `▐█▐█•▐▀▀▄·    ▄█▀▀█ █▌▐█▌ ▐█.▪ ▄█▀▄ ██ ▄▄ ▄█▀▄ ▐█ ▌▐▌▐█·▐█ ▌▐▌▐█·▐▀▀▪▄▐█▐▐▌ ▐█.▪ [${version}]`,
+  '▐█▐█•▐▀▀▄·    ▄█▀▀█ █▌▐█▌ ▐█.▪ ▄█▀▄ ██ ▄▄ ▄█▀▄ ▐█ ▌▐▌▐█·▐█ ▌▐▌▐█·▐▀▀▪▄▐█▐▐▌ ▐█.▪',
   ' ███ ▐█.█▌    ▐█ ▪▐▌▐█▄█▌ ▐█▌·▐█▌.▐▌▐███▌▐█▌.▐▌██ ██▌▐█▌██ ██▌▐█▌▐█▄▄▌██▐█▌ ▐█▌·',
   '. ▀  ·▀  ▀     ▀  ▀  ▀▀▀  ▀▀▀  ▀█▄▀▪·▀▀▀  ▀█▄▀▪▀▀  █▪▀▀▀▀▀  █▪▀▀▀ ▀▀▀ ▀▀ █▪ ▀▀▀ ',
 ].join('\n')
 
-const loadingmessages = fs.existsSync('./loadingmessages.json') ? global.safeRequire('./loadingmessages.json') : {}
+const loadingmessages = {
+  init: [
+    '> l o a d i n g',
+    '> Тестируем физику облаков...',
+    '> Крадём ваши данные...',
+    '> undefined',
+    "> Нажмите 'ALT + F4' для продолжения",
+    '> Error 404: Обновление не найдено',
+    '> Взламываем пентагон...',
+    '> Генерируем местность...',
+    '> Подготавливаем цветовую схему...',
+    '> Просматриваем историю браузера...',
+    '> Божечки-кошечки!',
+    '> Я думаю, Вы помните о том, что нужно использовать токен от Kate Mobile.',
+    '> Подменяем вашу операционную систему...',
+    '> Отключаемся от интернета...',
+    '> Возрождение мертвого клиента...',
+    '> Публикация данных ваших карт...',
+  ],
+}
 
 /**
  * @param {array} array - Массив с объектами
  */
 
-let getRandomItemFromArray = (array) => array[Math.round((array.length - 1) * Math.random())]
+const getRandomItemFromArray = (array) => array[Math.round((array.length - 1) * Math.random())]
 
 /**
  * Блок отображения загрузки.
@@ -34,12 +55,14 @@ console.log(
     logo,
     '',
     getRandomItemFromArray(loadingmessages.init),
-  ].join('\n')
+  ].join('\n'),
 )
 
 /**
  * Блок инициализации.
  */
+
+Utils.initConfigs()
 
 const readlineSync = require('readline-sync')
 readlineSync.setDefaultOptions({ encoding: 'utf8' })
@@ -48,14 +71,15 @@ const chalk = require('chalk')
 
 const { VK } = require('vk-io')
 
-let vk = new VK({
+const vk = new VK({
   apiMode: 'parallel_selected',
   apiExecuteMethods: ['groups.join'],
+  apiHeaders: { 'User-Agent': '' },
 })
 
-let { token, group_link, ignore_links, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync('./config.json') ? global.safeRequire('./config.json') : {}
+let { token, group_link, ignore_links, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync(path.join(process.cwd(), './config.json')) ? global.safeRequire(path.join(process.cwd(), './config.json'), true) : {}
 
-let posts = {
+const posts = {
   liked: [],
   commented: [],
 }
@@ -74,27 +98,31 @@ async function init () {
 
   debug('Обрабатываю ссылки ВКонтакте')
   links = await Promise.all(links.map(async (link) => {
-    debug(`Обрабатываю [${link}]`)
-    let result = await vk.snippets.resolveResource(link)
-    if (!result || (result.type !== 'group' && result.type !== 'user')) throw new Error(`Ссылка [${link}] должна вести на группу или пользователя.`)
-    return result.type === 'group' ? -result.id : result.id
+    try {
+      debug(`Обрабатываю [${link}]`)
+      const result = await vk.snippets.resolveResource(link)
+      if (!result || (result.type !== 'group' && result.type !== 'user' && result.type !== 'event')) throw new Error(`Ссылка [${link}] должна вести на группу, пользователя или мероприятие.`)
+      return (result.type === 'group' || result.type === 'event') ? -result.id : result.id
+    } catch (e) {
+      console.error(`${chalk.red('!')} Ошибка при обработке ссылки [${link}], перепроверьте её.`)
+    }
   }))
 
   if (group_link && group_link !== '') {
-    let result = await vk.snippets.resolveResource(group_link)
+    const result = await vk.snippets.resolveResource(group_link)
     group_link = result.type === 'group' ? result.id : 0
   }
 
   group_link = group_link == null ? 0 : group_link
 
-  vk.captchaHandler = async ({ src }, submit) => {
+  vk.captchaHandler = async ({ src }, retry) => {
     const result = captchaHandler(src)
 
     try {
-      await submit(result)
-      console.log(`${chalk.green('>')} Капча введена успешно.`)
+      await retry(result)
+      console.log(`${chalk.green('!')} Капча введена успешно.`)
     } catch (e) {
-      console.error(`${chalk.red('>')} Ошибка при вводе капчи.`)
+      console.error(`${chalk.red('!')} Ошибка при вводе капчи.`)
     }
   }
 
@@ -110,13 +138,14 @@ async function init () {
               await vk.api.groups.join({
                 group_id: Math.abs(group),
               })
-              console.log(`${chalk.blue('>')} Пользователь был автоматически подписан на группу [club${Math.abs(group)}].`)
+              console.log(`${chalk.blue('!')} Пользователь был автоматически подписан на группу [club${Math.abs(group)}].`)
             } catch (e) {
-              let errors = {
+              const errors = {
+                10: 'Внутренняя ошибка ВКонтакте (попробуйте позже)',
                 15: 'Доступ запрещён (скорее всего, пользователь находится в чёрном списке)',
                 103: 'Превышено ограничение на количество вступлений',
               }
-              let error = errors[e.code] || 'Неизвестная ошибка'
+              const error = errors[e.code] || 'Неизвестная ошибка'
               console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
             }
           }
@@ -129,33 +158,33 @@ async function init () {
   console.log([
     chalk.white.bold(logo),
     '',
-    `${chalk.blue('>')} VK AutoComment был запущен.`,
+    `${chalk.blue('!')} VK AutoComment был запущен.`,
   ].join('\n'))
   if (!like && !comment) {
-    console.error(`${chalk.red('>')} Необходимо включить хотя-бы одну функцию для работы программы.`)
+    console.error(`${chalk.red('!')} Необходимо включить хотя-бы одну функцию для работы программы.`)
     process.exit(0)
   }
 
   if (time < 100) {
     time = 100
-    console.log(`${chalk.red('>')} Интервал для обновления ленты был меньше 100 миллисекунд, в связи с этим он автоматические был установлен на 100 миллисекунд`)
+    console.log(`${chalk.red('!')} Интервал для обновления ленты был меньше 100 миллисекунд, в связи с этим он автоматические был установлен на 100 миллисекунд`)
   }
 
   intervalTTL && clearInterval(intervalTTL)
   intervalTTL = setInterval(async _ => {
-    let lastWallPost = (await vk.api.newsfeed.get({ filters: 'post', count: 1 })).items[0]
+    const lastWallPost = (await vk.api.newsfeed.get({ filters: 'post', count: 1 })).items[0]
 
     if (!ignore_links && !links.includes(lastWallPost.source_id)) return
 
     if (!posts.commented.includes(`${lastWallPost.source_id}${lastWallPost.post_id}`) && comment) {
       posts.commented.push(`${lastWallPost.source_id}${lastWallPost.post_id}`)
       try {
-        let message = getRandomItemFromArray(messages)
-        let attachment = getRandomItemFromArray(attachments)
+        const message = getRandomItemFromArray(messages)
+        const attachment = getRandomItemFromArray(attachments)
         if (message) {
           debug(`Отправляю в комментарии к записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}] сообщение с текстом [${message}]`)
-          let { comment_id } = (await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, from_group: group_link, post_id: lastWallPost.post_id, message: message, attachments: attachment }))
-          console.log(`${chalk.green('>')} Был написан комментарий под записью [wall${lastWallPost.source_id}_${lastWallPost.post_id}] с текстом [${message}]${attachments.length > 0 ? ` и вложением [${attachment}]` : ''}.`)
+          const { comment_id } = (await vk.api.wall.createComment({ owner_id: lastWallPost.source_id, from_group: group_link, post_id: lastWallPost.post_id, message: message, attachments: attachment }))
+          console.log(`${chalk.green('!')} Был написан комментарий под записью [wall${lastWallPost.source_id}_${lastWallPost.post_id}] с текстом [${message}]${attachments.length > 0 ? ` и вложением [${attachment}]` : ''}.`)
           if (likecomment) {
             try {
               await vk.api.likes.add({
@@ -163,21 +192,22 @@ async function init () {
                 owner_id: lastWallPost.source_id,
                 item_id: comment_id,
               })
-              console.log(`${chalk.green('>')} Был установлен лайк под отправленным комментарием [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
+              console.log(`${chalk.green('!')} Был установлен лайк под отправленным комментарием [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
             } catch (e) {
               console.error(chalk.red(`Ошибка: Неизвестная ошибка [${e.code}]`))
             }
           }
         }
       } catch (e) {
-        let errors = {
+        const errors = {
+          10: 'Внутренняя ошибка ВКонтакте (попробуйте позже)',
           15: 'Доступ запрещён (возможно, в группе от имени которой отправляется комментарий у аккаунта нет роли редактора)',
           213: 'Нет доступа к комментированию записи (возможно, комментарии были закрыты)',
           222: 'Запрещённые гиперссылки',
           223: 'Превышен лимит комментариев на стене',
         }
 
-        let error = errors[e.code] || 'Неизвестная ошибка'
+        const error = errors[e.code] || 'Неизвестная ошибка'
 
         console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
       }
@@ -192,13 +222,14 @@ async function init () {
           owner_id: lastWallPost.source_id,
           item_id: lastWallPost.post_id,
         })
-        console.log(`${chalk.green('>')} Был установлен лайк записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
+        console.log(`${chalk.green('!')} Был установлен лайк записи [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
       } catch (e) {
-        let errors = {
+        const errors = {
+          10: 'Внутренняя ошибка ВКонтакте (попробуйте позже)',
           30: 'Профиль закрытый',
         }
 
-        let error = errors[e.code] || 'Неизвестная ошибка'
+        const error = errors[e.code] || 'Неизвестная ошибка'
 
         console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
       }
@@ -214,7 +245,7 @@ async function init () {
 
 function captchaHandler (source) {
   console.log(chalk.yellow(`> Была получена капча [${source}]`))
-  let result = readlineSync.question(`${chalk.red.bold('>')} `)
+  const result = readlineSync.question(`${chalk.red.bold('>')} `)
   return result
 }
 
@@ -225,10 +256,10 @@ function captchaHandler (source) {
  */
 
 let adscount = 0
-let adsmessages = [
+const adsmessages = [
   `${chalk.yellow('!')} Благодарность - лучшее, что может услышать разработчик скрипта.`,
   `${chalk.yellow('!')} Не забудьте оставить отзыв в теме форума, где Вы нашли данный скрипт или поставить Star на GitHub`,
-  `${chalk.yellow('!')} Вы можете заказать разработку бота по своему тех. заданию в группе -> ${chalk.white.bold('vk.me/aeonix')}`,
+  `${chalk.yellow('!')} Вы можете заказать разработку бота по своему тех. заданию в Telegram -> ${chalk.white.bold('@aeonixlegit')}`,
   `${chalk.yellow('!')} Вы можете поддержать разработчика используя donation alerts -> ${chalk.white.bold('donationalerts.com/r/aeonixlegit')}`,
   `${chalk.yellow('!')} Всегда проверяйте обновления на GitHub, ведь обновление может выйти с минуты на минуту с необходимым для Вас функционалом.`,
   `${chalk.yellow('!')} Наличие рекламы в бесплатном приложении - признак его долгой поддержки.`,
