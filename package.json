@@ -1,6 +1,6 @@
 {
   "name": "vk-autocomment",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "VK Auto Comment Bot",
   "main": "src/index.js",
   "scripts": {
@@ -14,7 +14,8 @@
     "cross-env": "^5.2.1",
     "debug": "^4.1.1",
     "readline-sync": "^1.4.10",
-    "vk-io": "^4.0.0-rc.29"
+    "vk-io": "^4.0.0-rc.29",
+    "fs-extra": "^8.1.0"
   },
   "devDependencies": {
     "eslint": "6.6.0",
@@ -23,7 +24,6 @@
     "eslint-plugin-node": "10.0.0",
     "eslint-plugin-promise": "^4.1.1",
     "eslint-plugin-standard": "^4.0.0",
-    "fs-extra": "^8.1.0",
     "husky": "3.1.0",
     "nexe": "4.0.0-beta.3",
     "upx": "^1.0.6"

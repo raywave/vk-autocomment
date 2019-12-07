@@ -45,6 +45,6 @@ fs.emptyDirSync(DIR_COMPRESS)
 
 Promise.all([
   build('win-x86'),
-  build('linux-x86'),
-  build('mac-x64'),
+  // build('linux-x86'),
+  // build('mac-x64'),
 ])

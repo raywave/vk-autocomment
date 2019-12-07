@@ -77,7 +77,7 @@ const vk = new VK({
   apiHeaders: { 'User-Agent': '' },
 })
 
-let { token, group_link, ignore_links, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync(path.join(process.cwd(), './config.json')) ? global.safeRequire(path.join(process.cwd(), './config.json'), true) : {}
+let { token, group_link, ignore_links, links, messages, attachments, autosubscribe, like, comment, likecomment, time } = fs.existsSync(path.join(process.cwd(), './config.json')) ? global.safeJSON(path.join(process.cwd(), './config.json'), true) : {}
 
 const posts = {
   liked: [],
@@ -146,7 +146,7 @@ async function init () {
                 103: 'Превышено ограничение на количество вступлений',
               }
               const error = errors[e.code] || 'Неизвестная ошибка'
-              console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
+              console.error(chalk.red(`! Ошибка во время подписки на группу: ${error} [${e.code}]`))
             }
           }
         })
@@ -167,7 +167,7 @@ async function init () {
 
   if (time < 100) {
     time = 100
-    console.log(`${chalk.red('!')} Интервал для обновления ленты был меньше 100 миллисекунд, в связи с этим он автоматические был установлен на 100 миллисекунд`)
+    console.log(`${chalk.red('!')} Интервал для обновления ленты был меньше 100 миллисекунд, в связи с этим он автоматические был установлен на 100 миллисекунд.`)
   }
 
   intervalTTL && clearInterval(intervalTTL)
@@ -194,7 +194,7 @@ async function init () {
               })
               console.log(`${chalk.green('!')} Был установлен лайк под отправленным комментарием [wall${lastWallPost.source_id}_${lastWallPost.post_id}].`)
             } catch (e) {
-              console.error(chalk.red(`Ошибка: Неизвестная ошибка [${e.code}]`))
+              console.error(chalk.red(`! Ошибка во время установки лайка комментарию: Неизвестная ошибка [${e.code}]`))
             }
           }
         }
@@ -209,7 +209,7 @@ async function init () {
 
         const error = errors[e.code] || 'Неизвестная ошибка'
 
-        console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
+        console.error(chalk.red(`! Ошибка во время оставления комментария: ${error} [${e.code}]`))
       }
     }
 
@@ -231,12 +231,13 @@ async function init () {
 
         const error = errors[e.code] || 'Неизвестная ошибка'
 
-        console.error(chalk.red(`Ошибка: ${error} [${e.code}]`))
+        console.error(chalk.red(`! Ошибка во время лайка поста: ${error} [${e.code}]`))
       }
     }
   }, time)
 
   setInterval(ads, 600000)
+  setInterval(clearCache, 30000)
 }
 
 /**
@@ -244,7 +245,7 @@ async function init () {
  */
 
 function captchaHandler (source) {
-  console.log(chalk.yellow(`> Была получена капча [${source}]`))
+  console.log(chalk.yellow(`> Была получена капча [ ${source} ]`))
   const result = readlineSync.question(`${chalk.red.bold('>')} `)
   return result
 }
@@ -260,14 +261,24 @@ const adsmessages = [
   `${chalk.yellow('!')} Благодарность - лучшее, что может услышать разработчик скрипта.`,
   `${chalk.yellow('!')} Не забудьте оставить отзыв в теме форума, где Вы нашли данный скрипт или поставить Star на GitHub`,
   `${chalk.yellow('!')} Вы можете заказать разработку бота по своему тех. заданию в Telegram -> ${chalk.white.bold('@aeonixlegit')}`,
-  `${chalk.yellow('!')} Вы можете поддержать разработчика используя donation alerts -> ${chalk.white.bold('donationalerts.com/r/aeonixlegit')}`,
+  `${chalk.yellow('!')} Вы можете поддержать разработчика используя DonationAlerts -> ${chalk.white.bold('donationalerts.com/r/aeonixlegit')}`,
   `${chalk.yellow('!')} Всегда проверяйте обновления на GitHub, ведь обновление может выйти с минуты на минуту с необходимым для Вас функционалом.`,
   `${chalk.yellow('!')} Наличие рекламы в бесплатном приложении - признак его долгой поддержки.`,
 ]
 
 function ads () {
-  console.log(adsmessages[adscount % adsmessages.length])
-  adscount++
+  console.log(adsmessages[++adscount % adsmessages.length])
+}
+
+/**
+ * Блок LRU.
+ *
+ * TODO: Заменить это все менее костыльным способом.
+ */
+
+function clearCache () {
+  posts.liked = posts.liked.slice(-3)
+  posts.commented = posts.commented.slice(-3)
 }
 
 init().catch(console.error)

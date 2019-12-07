@@ -1,4 +1,5 @@
 const debug = require('debug')('vk-autocomment:utils')
+const fs = require('fs')
 
 function initConfigs () {
   const fs = require('fs-extra')
@@ -21,6 +22,15 @@ global.safeRequire = function safeRequire (module, terminate = false) {
     if (err.code === 'MODULE_NOT_FOUND' && ~err.message.indexOf(module)) console.error(`\n! Файл [${module}] не найден.\n`)
     else console.error(`\n! Ошибка при инициализации кода в файле [${module}]. Перепроверьте его!\n`)
     if (terminate) return process.exit(1)
+  }
+}
+
+global.safeJSON = function safeJSON (module) {
+  try {
+    debug(`Подключаю файл ${module}`)
+    return JSON.parse(fs.readFileSync(module, 'utf-8'))
+  } catch (err) {
+    console.error(`\n! Ошибка при инициализации файла [${module}]. Перепроверьте его!\n`)
   }
 }
 
