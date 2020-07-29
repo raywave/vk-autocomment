@@ -172,7 +172,18 @@ async function init () {
 
   intervalTTL && clearInterval(intervalTTL)
   intervalTTL = setInterval(async _ => {
-    const lastWallPost = (await vk.api.newsfeed.get({ filters: 'post', count: 1 })).items[0]
+    let lastWallPost
+    try {
+      let newsfeed = await vk.api.newsfeed.get({ filters: 'post', count: 1 })
+      lastWallPost = newsfeed.items[0]
+    } catch (e) {
+      if (e.code && e.code === 29) {
+        console.error(chalk.red(`! Ошибка во время получения ленты новостей: Достигнут скрытый лимит ежедневных запросов к API, попробуйте поменять аккаунт и установить больший интервал между запроосами.. [${e.code}]`))
+      } else {
+        console.error(chalk.red(`! Ошибка во время получения ленты новостей: Неизвестная ошибка [${e.code}]`))
+      }
+      return
+    }
 
     if (!ignore_links && !links.includes(lastWallPost.source_id)) return
 
