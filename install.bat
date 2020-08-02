@@ -1,6 +1,6 @@
 @echo off
 title vk-autocomment
 IF NOT EXIST ./src/config.json (RENAME "./src/config.example.json" "config.json")
-yarn add
+npm i --only=prod --no-audit --no-progress
 echo Install successful.
 pause
